@@ -8,3 +8,4 @@ environs
 pytest
 pytest-cov
 mongomock
+gunicorn
