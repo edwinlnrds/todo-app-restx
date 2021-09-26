@@ -1,4 +1,4 @@
-from flask_restx import Resource
+from flask import Resource
 from flask import request
 from datetime import datetime
 from app.models.todo import Todo
