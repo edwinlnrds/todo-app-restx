@@ -30,7 +30,6 @@ class TodoController(Resource):
 
         except Exception as e:
             return response.bad_request('{}'.format(e), '')
-
         
     @jwt_required
     def post(self):
@@ -53,13 +52,13 @@ class TodoController(Resource):
     @jwt_required
     def put(self, id):
         try:
-            todo = Todo.objects(id=id).first()
-
+            todo = Todo.objects(id=id, deleted_at=None).first()
+            if not todo:
+                return response.not_found('Todo not found', '')
+            
             user_id = get_identity()['id']
             if user_id != str(todo.user_id.id):
                 return response.unauthorized('Unauthorized','')
-            if not todo:
-                return response.not_found('Todo not found', '')
 
             if not request.json['title']:
                 raise Exception("Title cannot be empty!")
@@ -72,18 +71,17 @@ class TodoController(Resource):
 
             return response.ok('Todo Updated!', TodoTransformer.single_transform(todo))
         except Exception as e:
-            return response.bad_request("{}".format(e),'')
+            return response.bad_request(f"{e}",'')
 
     @jwt_required
     def delete(self, id):
         try:
             todo = Todo.objects(id=id).first()
+            if not todo:
+                return response.not_found('Todo not found!','')
 
             if get_identity()['id'] != str(todo.user_id.id):
                 return response.unauthorized('Unauthorized','')
-
-            if not todo:
-                return response.not_found('Todo not found!','')
 
             if todo.deleted_at:
                 raise Exception('Todo does not exist!', '')
@@ -93,4 +91,4 @@ class TodoController(Resource):
 
             return response.ok('Todo deleted successfully', TodoTransformer.single_transform(todo))
         except Exception as e:
-            return response.bad_request('{e}'.format(e), '')
+            return response.bad_request('{}'.format(e), '')
