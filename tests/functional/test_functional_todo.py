@@ -121,12 +121,11 @@ def test_read_todo_without_id(client, database):
 def test_read_todo_without_token(client, database):
     pass
 
-def test_read_multiple_todo(client, database):
+def test_read_todo_not_found(client, database):
     pass
 
 def test_read_todo_by_another_user(client, database):
     pass
-
 
 def test_update_todo(client, database):
     payload = {

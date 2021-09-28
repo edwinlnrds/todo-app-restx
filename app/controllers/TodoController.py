@@ -11,22 +11,27 @@ from app.libraries.access_jwt import get_identity, jwt_required
 class TodoController(Resource):
     @jwt_required
     def get(self, id=None):
-        user_id = get_identity()['id']
-        if not id:
-            # q = request.args.get('q')
+        try:
+            user_id = get_identity()['id']
+            if not id:
+                # q = request.args.get('q')
 
-            todos = Todo.objects(user_id=user_id, deleted_at=None).all()
-            todos = TodoTransformer.transform(todos)
-        else:
-            todos = Todo.objects(id=id, user_id=user_id, deleted_at=None).first()
+                todos = Todo.objects(user_id=user_id, deleted_at=None).all()
+                todos = TodoTransformer.transform(todos)
+            else:
+                todos = Todo.objects(id=id, user_id=user_id, deleted_at=None).first()
 
-            if not todos:
-                return response.bad_request('Todo not found!','')
+                if not todos:
+                    raise Exception('Todo not found!','')
 
-            todos = TodoTransformer.single_transform(todos)
+                todos = TodoTransformer.single_transform(todos)
 
-        return response.ok('', todos)
+            return response.ok('', todos)
 
+        except Exception as e:
+            return response.bad_request('{}'.format(e), '')
+
+        
     @jwt_required
     def post(self):
         user_id = get_identity()['id']
@@ -81,7 +86,7 @@ class TodoController(Resource):
                 return response.not_found('Todo not found!','')
 
             if todo.deleted_at:
-                return response.bad_request('Todo does not exist!', '')
+                raise Exception('Todo does not exist!', '')
             
             todo.deleted_at = datetime.now()
             todo.save()
