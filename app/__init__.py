@@ -1,16 +1,21 @@
 from flask import Flask
-from app.config import Config
-app = Flask(__name__)
-app.config.from_object(Config)
 
-# Initiate api 
-from flask_restx import Api
-api = Api(app)
+def create_app(Config):
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    
+    if not app.config['TESTING']:
+        from app.db_manager import DatabaseManager
+        DatabaseManager.open_database()
 
-from flask_jwt_extended import JWTManager
-jwt = JWTManager(app)
+    # Registering blueprints
+    from app.routes.auth import auth_blueprint
+    app.register_blueprint(auth_blueprint)
 
-from app.db_manager import DatabaseManager
-DatabaseManager.open_database()
+    from app.routes.todo import todo_blueprint
+    app.register_blueprint(todo_blueprint)
 
-from app import routes
+    from flask_jwt_extended import JWTManager
+    JWTManager(app)
+
+    return app
