@@ -5,7 +5,7 @@ env.read_env()
 
 
 class Config(object):
-    APP_ENV = env.str('FLASK_ENV', default='development')
+    APP_ENV = 'development'
     FLASK_RUN_HOST = env.str('FLASK_RUN_HOST')
     FLASK_RUN_PORT = env.str('FLASK_RUN_PORT')
 
@@ -22,3 +22,9 @@ class Config(object):
 
     SESSION_TYPE = 'filesystem'
     PERMANENT_SESSION_LIFETIME = timedelta(days=3)
+
+class ProductionConfig(Config):
+    APP_ENV = 'production'
+
+class TestingConfig(Config):
+    TESTING = True

@@ -3,8 +3,9 @@ from mongoengine import connect, disconnect
 
 @pytest.fixture
 def test_app():
-    from app import app
-
+    from app import create_app
+    from app.config import TestingConfig
+    app = create_app(TestingConfig)
     return app
 
 @pytest.fixture
