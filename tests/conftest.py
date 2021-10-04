@@ -124,14 +124,17 @@ def login(client, database, user):
     return _login
 
 @pytest.fixture(scope="function")
-def get_token(register):
+def get_token(register, login):
     """
     Return a user token that required for Authorization,
     this fixture already include register process, and 
     returned status code 200
     """
     def _get_token(user=None):
-        data = register(user)
+        try:
+            data = register(user)
+        except: # if error raised, then user must be exist. Then login
+            data = login(user)
         return data['values']['token']['access_token']
     return _get_token
 
