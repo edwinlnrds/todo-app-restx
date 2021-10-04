@@ -6,97 +6,78 @@ def test_create_user(client, database, user):
     data = json.loads(response.get_data(as_text=True))
     assert data["values"]["name"] == user["name"]
 
-def test_create_user_twice(client, database, user):
-    response = client.post("/register", json=user)
-    assert response.status_code == 200
+def test_create_user_twice(register):
+    register(expected_status_code=200)
 
-    response = client.post("/register", json=user)
-    assert response.status_code == 400
+    register(expected_status_code=400)
 
 
-def test_create_user_with_empty_name(client, database, user):
-    user["name"] = ""
+def test_create_user_with_empty_name(make_user, register):
+    user = make_user(with_empty=['name'])
 
-    response = client.post("/register", json=user)
-    data = json.loads(response.get_data(as_text=True))
+    data = register(user)
 
-    assert response.status_code == 200
-    assert data["values"]["name"] == ""
+    assert data["values"]["name"] == user["name"]
 
 
-def test_create_user_with_empty_email(client, database, user):
-    user["email"] = ""
+def test_create_user_with_empty_email(make_user, register):
+    user = make_user(with_empty=['email'])
 
-    response = client.post("/register", json=user)
-    assert response.status_code == 400
-
-
-def test_create_user_with_empty_password(client, database, user):
-    user["password"] = ""
-
-    response = client.post("/register", json=user)
-    assert response.status_code == 400
+    register(user, 400) # Register a user that has empty email, expecting status code 400
 
 
-def test_create_user_with_empty_confirmation_password(client, database, user):
-    user["confirmation_password"] = ""
+def test_create_user_with_empty_password(make_user, register):
+    user = make_user(with_empty=['password'])
 
-    response = client.post("/register", json=user)
-    assert response.status_code == 400
+    register(user, 400) # Register a user with empty password, expecting status code 400
 
+def test_create_user_with_empty_confirmation_password(make_user, register):
+    user = make_user(with_empty=['confirmation_password'])
 
-def test_create_user_without_password(client, database, user):
-    del user["password"]
-    response = client.post('/register', json=user)
-    assert response.status_code == 400
+    register(user, 400)
 
 
-def test_auth_user(client, database, user):
-    client.post('/register', json=user)
+def test_create_user_without_password(make_user, register):
+    user = make_user(without=['password'])
 
-    name = user["name"]
-    del user["name"]
-    del user["confirmation_password"]
+    register(user, 400) # Register an user without password, expecting status code 400
 
-    response = client.post('/login', json=user)
-    assert response.status_code == 200
 
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['name'] == name
+def test_auth_user(make_user, register, login):
+    register() # Register a user with the default one, expecting status code 200
+
+    login_user = make_user(without=['confirmation_password'])
+    data = login(login_user)
+
+    assert data['values']['name'] == login_user['name']
     assert 'token' in data['values']
 
-def test_auth_user_with_wrong_email(client, database, user):
-    client.post('/register', json=user)
+def test_auth_user_with_wrong_email(make_user, register, login, user):
+    register()
 
-    del user["name"]
-    del user["confirmation_password"]
-    user["email"] = "wrong_email@mail.com"
+    user = make_user(without=['name', 'confirmation_password'])
+    user["email"] = "wrong_email@mail.com" # Alter the email
 
-    response = client.post('/login', json=user)
-    assert response.status_code == 400
+    login(user, 400) # Login with the altered email user, expecting bad request (400)
 
-def test_auth_user_with_wrong_password(client, database, user):
-    client.post('/register', json=user)
+def test_auth_user_with_wrong_password(make_user, register, login):
+    register()
 
+    user = make_user(without=['name','confirmation_password'])
     user["password"] = "wrongpassword"
 
-    response = client.post('/login', json=user)
-    assert response.status_code == 400
+    login(user, 400)
 
+def test_auth_user_with_empty_password(make_user, register, login):
+    register()
 
-def test_auth_user_with_empty_password(client, database, user):
-    client.post('/register', json=user)
-
-    del user["name"]
-    del user["confirmation_password"]
+    user = make_user(without=['name','confirmation_password'])
     user["password"] = ""
 
-    response = client.post('/login', json=user)
-    assert response.status_code == 400
+    login(user, 400)
 
-def test_auth_with_empty_payload(client, database, user):
-    client.post('/register', json=user)
+def test_auth_with_empty_payload(register, login):
+    register()
 
     payload = {}
-    response = client.post('/login', json=payload)
-    assert response.status_code == 400
+    login(payload, 400)
