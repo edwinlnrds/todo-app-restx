@@ -1,5 +1,6 @@
 import pytest
 from mongoengine import connect, disconnect
+from http import HTTPStatus
 
 @pytest.fixture
 def test_app():
@@ -123,3 +124,54 @@ def get_token(register):
         data = register(user)
         return data['values']['token']['access_token']
     return _get_token
+
+
+@pytest.fixture(scope="function")
+def create_todo(client, database, todo, get_token):
+    def _create_todo(payload=todo, expected_status_code=HTTPStatus.OK):    
+        bearer_token = "Bearer {}".format(get_token())
+        response = client.post('/todo', json=payload, headers={'Authorization': bearer_token })
+        assert response.status_code == expected_status_code
+
+        import json
+        data = json.loads(response.get_data(as_text=True))
+        return data
+    return _create_todo
+
+@pytest.fixture(scope="function")
+def read_todo(client, database, get_token):
+    def _read_todo(id=None, expected_status_code=HTTPStatus.OK, token=get_token()):
+        path = '/todo'
+        if id:
+            path =f'/todo/{id}'
+
+        bearer_token = "Bearer {}".format(token)
+        response = client.get(path, headers={'Authorization': bearer_token})
+        assert response.status_code == expected_status_code
+
+        import json
+        data = json.loads(response.get_data(as_text=True))
+        return data
+
+    return _read_todo
+
+
+@pytest.fixture(scope="function")
+def update_todo(client, database, get_token, todo):
+    def _update_todo(id,todo=todo, expected_status_code=HTTPStatus.OK, token=get_token()):
+        bearer_token = "Bearer {}".format(token)
+        response = client.put(f'/todo/{id}', json=todo, headers={'Authorization': bearer_token})
+        assert response.status_code == expected_status_code
+
+        import json
+        data = json.loads(response.get_data(as_text=True))
+        return data
+    return _update_todo
+
+@pytest.fixture(scope="function")
+def delete_todo(client, database, get_token, todo):
+    def _delete_todo(id, expected_status_code=HTTPStatus.OK, token=get_token()):
+        bearer_token = "Bearer {}".format(token)
+        response = client.delete(f'/todo/{id}', headers={'Authorization':bearer_token})
+        assert response.status_code == expected_status_code
+    return _delete_todo
