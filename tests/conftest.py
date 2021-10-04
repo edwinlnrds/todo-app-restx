@@ -80,7 +80,7 @@ def register(client, database, user):
     returns a function that can be called when 
     register process is required
     """
-    def _register(custom_user=None, expected_status_code=200):
+    def _register(custom_user=None, expected_status_code=HTTPStatus.OK):
         """
         By default, user already provided by fixtures above, method user()
         
@@ -101,7 +101,7 @@ def register(client, database, user):
 
 @pytest.fixture(scope="function")
 def login(client, database, user):
-    def _login(custom_user=None, expected_status_code=200):
+    def _login(custom_user=None, expected_status_code=HTTPStatus.OK):
         if custom_user is not None:
             response = client.post('/login', json=custom_user)
         else:
