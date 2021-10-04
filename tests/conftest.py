@@ -59,12 +59,17 @@ def other_user():
 
 @pytest.fixture(scope="function")
 def mock_todo():
-    def _mock_todo(without=[], with_empty=[]):
+    def _mock_todo(title=None, description=None, done=False, without=[], with_empty=[]):
         payload= {
             "title": "Todo Payload",
             "description": "test description",
-            "done": False
+            "done": done
         }
+
+        if title:
+            payload['title'] = title
+        if description:
+            payload['description'] = description
         
         for keyword in without:
             del payload[keyword]
