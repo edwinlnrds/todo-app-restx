@@ -20,8 +20,8 @@ def database(test_app):
         connect('mongoenginetest', host='mongomock://localhost/mocking_db')
 
 @pytest.fixture
-def make_user():
-    def _make_user(without=[], with_empty=[]):    
+def mock_user():
+    def _mock_user(without=[], with_empty=[]):    
         payload = {
             "name": "Edwin",
             "email": "test@mail.com",
@@ -36,11 +36,11 @@ def make_user():
             payload[keyword] = ""
 
         return payload
-    return _make_user
+    return _mock_user
 
 @pytest.fixture(scope="function")
-def user(make_user):
-    new_user =  make_user()
+def user(mock_user):
+    new_user =  mock_user()
     return new_user
 
 @pytest.fixture(scope="function")
@@ -53,8 +53,8 @@ def other_user():
     }
 
 @pytest.fixture(scope="function")
-def make_todo():
-    def _make_todo(without=[], with_empty=[]):
+def mock_todo():
+    def _mock_todo(without=[], with_empty=[]):
         payload= {
             "title": "Todo Payload",
             "description": "test description",
@@ -68,11 +68,11 @@ def make_todo():
             payload[keyword] = ''
 
         return payload
-    return _make_todo
+    return _mock_todo
 
 @pytest.fixture(scope="function")
-def todo(make_todo):
-    return make_todo()
+def todo(mock_todo):
+    return mock_todo()
 
 @pytest.fixture(scope="function")
 def register(client, database, user):
