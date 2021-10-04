@@ -1,617 +1,181 @@
 import json
+from http import HTTPStatus
 
 
-def test_create_todo(client, database):
-    payload = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Minum Air",
-        "description": "Minum air 1 Liter"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == "Minum Air"
+def test_create_todo(todo, create_todo):
+    data = create_todo()
+    assert data['values']['title'] == todo['title']
     assert data['values']['done'] == False
 
 
-def test_create_todo_with_empty_title(client, database):
-    payload = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=payload)
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
+def test_create_todo_with_empty_title(mock_todo, create_todo):
+    todo = mock_todo(with_empty=['title'])
+    create_todo(todo, HTTPStatus.BAD_REQUEST)
 
-    payload = {
-        "title": "",
-        "description": "Nothing here."
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
+def test_create_todo_with_empty_description(mock_todo, create_todo):
+    todo = mock_todo(with_empty=['description'])
+    data = create_todo(todo)
 
-    assert response.status_code == 400
+    assert data['values']['title'] == todo['title']
+    assert data['values']['description'] == todo['description']
+    assert data['values']['done'] == todo['done']
+
+def test_create_todo_without_description(mock_todo, create_todo):
+    todo = mock_todo(without=['description'])
+    create_todo(todo, HTTPStatus.BAD_REQUEST)
 
 
-def test_create_todo_without_description(client, database):
-    payload = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=payload)
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Todo without description",
-        "description": ""
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-
-    assert response.status_code == 200
-    assert data['values']['title'] == "Todo without description"
-    assert data['values']['description'] == ""
-    assert data['values']['done'] == False
+def test_create_todo_without_headers(client, database, todo):
+    response = client.post('/todo', json=todo)
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
-def test_create_todo_without_headers(client, database):
-    payload = {
-        "title": "Todo without headers",
-        "description": ""
-    }
-    response = client.post('/todo', json=payload)
-
-    assert response.status_code == 401
-
-
-def test_create_todo_without_token(client, database):
-    payload = {
-        "title": "Todo without token",
-        "description": "Should return 401/Unauthorized"
-    }
+def test_create_todo_without_token(client, database, todo):
     token = ""
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-
-    assert response.status_code == 401
+    response = client.post('/todo', json=todo, headers={'Authorization': token})
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
 
 
-def test_read_todo(client, database):
-    payload = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=payload)
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Todo test",
-        "description": "Here lies the description"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-    assert response.status_code == 200
-
+def test_read_todo(create_todo, read_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    response = client.get(f'/todo/{id}', headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
+    read_data = read_todo(id)
 
-    assert data['values']['title'] == payload['title']
-    assert data['values']['description'] == payload['description']
+    assert data['values']['title'] == read_data['values']['title']
+    assert data['values']['description'] == read_data['values']['description']
     assert data['values']['done'] == False
 
 
-def test_read_todos(client, database):
-    owner = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=owner)
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
+def test_read_todos(mock_todo, get_token, create_todo, read_todo):
     payload = [
-        {"title": "Todo 1", "description": "Todo 1 description"},
-        {"title": "Todo 2", "description": "Todo 2 description"},
-        {"title": "Todo 3", "description": "Todo 3 description"},
+        mock_todo(title="Todo 1", description="Todo 1 description"),
+        mock_todo(title="Todo 2", description="Todo 2 description"),
+        mock_todo(title="Todo 3", description="Todo 3 description")
     ]
 
+    token = get_token()
     for item in payload:
-        response = client.post(
-            '/todo', json=item, headers={'Authorization': token})
-        assert response.status_code == 200
+        create_todo(item, token=token)
 
-    response = client.get('/todo', headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
+    data = read_todo()
 
-    assert response.status_code == 200
     for index in range(len(payload)):
         item = data['values']
         assert item[index]["title"] == payload[index]["title"]
         assert item[index]["description"] == payload[index]["description"]
 
 
-def test_read_todo_with_wrong_id(client, database):
-    owner = {
-        "name": "John Doe",
-        "email": "johndoe@mail.com",
-        "password": "123456",
-        "confirmation_password": "123456"
-    }
-    response = client.post('/register', json=owner)
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Todo test",
-        "description": "Here lies the description"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-    assert response.status_code == 200
-
-    id = 'a' +  data['values']['id'][1:len(data['values']['id'])]
-
-    response = client.get(f'/todo/{id}', headers={'Authorization': token})
-    assert response.status_code == 400
-
-def test_update_todo(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing dish!",
-        "description": "Washing dish leftfover from the party yesterday."
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == "Washing dish!"
-    assert data['values']['description'] == "Washing dish leftfover from the party yesterday."
-    assert data['values']['done'] == False
+def test_read_todo_with_wrong_id(create_todo, read_todo):
+    create_todo()
+    id = '615af37e76d592047555c27z'
+    read_todo(id, HTTPStatus.BAD_REQUEST)
 
 
-def test_update_todo_done_status(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
+def test_update_todo(mock_todo, create_todo, update_todo):
+    id = create_todo()['values']['id']
+    
+    new_data = mock_todo(title="New Todo")
 
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
+    result = update_todo(id=id, todo=new_data)
 
-    payload = {
-        "title": "Washing dish!",
-        "description": "Washing dish leftfover from the party yesterday."
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
+    assert result['values']['title'] == new_data['title']
+    assert result['values']['description'] == new_data['description']
+    assert result['values']['done'] == False
 
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == "Washing dish!"
-    assert data['values']['description'] == "Washing dish leftfover from the party yesterday."
-    assert data['values']['done'] == False
 
+def test_update_todo_done_status(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    payload = {
-        "title": "test",
-        "description": "boo",
-        "done": True
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 200
-
-    data = json.loads(response.get_data(as_text=True))
+    payload = mock_todo(done=True)
+    data = update_todo(id, todo=payload)
     assert data['values']['done'] == True
 
 
-def test_update_todo_with_empty_description(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing dish!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == payload['title']
-    assert data['values']['done'] == False
-
+def test_update_todo_with_empty_description(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
-
-    payload = {
-        "title": "REEEEEEEE",
-        "description": "",
-        "done": False
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 200
-
-    data = json.loads(response.get_data(as_text=True))
+    
+    payload = mock_todo(with_empty=['description'])
+    data = update_todo(id, todo=payload)
     assert data['values']['title'] == payload['title']
     assert data['values']['description'] == payload['description']
     assert data['values']['done'] == payload['done']
 
 
-def test_update_todo_empty_title(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == payload['title']
-    assert data['values']['done'] == False
-
+def test_update_todo_empty_title(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    payload = {
-        "title": "",
-        "description": "payload without title",
-        "done": False
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 400
+    payload = mock_todo(with_empty=['title'])
+    update_todo(id, payload, HTTPStatus.BAD_REQUEST)
 
 
-def test_update_todo_without_title(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Sleep!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-
-    data = json.loads(response.get_data(as_text=True))
-    assert data['values']['title'] == payload['title']
-    assert data['values']['done'] == False
-
+def test_update_todo_without_title(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    payload = {
-        "description": "Without title in the dict!",
-        "done": False
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 400
+    payload = mock_todo(without=['title'])
+    update_todo(id, payload, HTTPStatus.BAD_REQUEST)
 
 
-def test_update_without_description(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload, headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-    assert response.status_code == 200
-
+def test_update_without_description(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
-
-    payload = {
-        "title": "Todo without description",
-        "done": False
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 400
-
-
-def test_update_without_done_status(client, database):
-    payload = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=payload)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    data = json.loads(response.get_data(as_text=True))
-    assert response.status_code == 200
-
-    id = data['values']['id']
-
-    payload = {
-        "title": "Todo",
-        "description": "without done status."
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 400
-
-
-def test_update_todo_with_different_user(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-
-    id = data['values']['id']
-
-    another_user = {
-        "name": "Booze",
-        "email": "booze@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=another_user)
-    data = json.loads(response.get_data(as_text=True))
-
-    other_token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Todo",
-        "description": "test update by another user.",
-        "done": True
-    }
-    response = client.put(
-        f'/todo/{id}', json=payload, headers={'Authorization': other_token})
-    assert response.status_code == 401
-
-def test_update_todo_with_wrong_id(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-
-    id =  id = 'a' +  data['values']['id'][1:len(data['values']['id'])]
     
-    payload = {
-        "title": "Todo",
-        "description": "test update with wrong id.",
-        "done": True
-    }
-    response = client.put(f'/todo/{id}', json=payload, headers={'Authorization': token})
-    assert response.status_code == 404
+    payload = mock_todo(without=['description'])
+    update_todo(id, payload, HTTPStatus.BAD_REQUEST)
 
 
-def test_delete_todo(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-
+def test_update_without_done_status(mock_todo, create_todo, update_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    response = client.delete(f'/todo/{id}', headers={'Authorization': token})
-    assert response.status_code == 200
+    payload = mock_todo(without=['done'])
+    update_todo(id, payload, HTTPStatus.BAD_REQUEST)
 
 
-def test_delete_todo_with_different_user(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
-
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-
+def test_update_todo_with_different_user(mock_todo, create_todo, update_todo, get_token, other_user):
+    data = create_todo()
     id = data['values']['id']
 
-    another_user = {
-        "name": "Booze",
-        "email": "booze@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=another_user)
-    data = json.loads(response.get_data(as_text=True))
+    token = get_token(other_user)
 
-    other_token = "Bearer {}".format(data['values']['token']['access_token'])
-
-    response = client.delete(
-        f'/todo/{id}', headers={'Authorization': other_token})
-    assert response.status_code == 401
+    payload = mock_todo(description="Test update by other user",done=True)
+    update_todo(id, payload, HTTPStatus.UNAUTHORIZED, token)
 
 
-def test_delete_todo_with_wrong_id(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
+def test_update_todo_with_wrong_id(mock_todo, create_todo, update_todo):
+    data = create_todo()
+    id = id = 'a' + data['values']['id'][1:len(data['values']['id'])]
 
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
+    payload = mock_todo(description="test update with wrong id", done=True)
+    update_todo(id, payload, HTTPStatus.NOT_FOUND)
 
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
 
-    id = '6153377b3eb3c495ef888888' # random id
+def test_delete_todo(create_todo, delete_todo):
+    data = create_todo()
+    id = data['values']['id']
+    delete_todo(id)
+
+
+def test_delete_todo_with_different_user(create_todo, delete_todo, get_token, other_user):
+    data = create_todo()
+    id = data['values']['id']
     
-    response = client.delete(
-        f'/todo/{id}', headers={'Authorization': token})
-    assert response.status_code == 404
+    other_token = get_token(other_user)
+    delete_todo(id, HTTPStatus.UNAUTHORIZED, other_token)
 
-def test_delete_todo_twice(client, database):
-    owner = {
-        "name": "Edwin",
-        "email": "sample@mail.com",
-        "password": "thisisapassword",
-        "confirmation_password": "thisisapassword"
-    }
-    response = client.post('/register', json=owner)
 
-    data = json.loads(response.get_data(as_text=True))
-    token = "Bearer {}".format(data['values']['token']['access_token'])
+def test_delete_todo_with_wrong_id(create_todo, delete_todo):
+    create_todo()
+    id = '6153377b3eb3c495ef888888'  # random id
+    delete_todo(id, HTTPStatus.NOT_FOUND)
 
-    payload = {
-        "title": "Washing car!",
-        "description": "lalalala"
-    }
-    response = client.post('/todo', json=payload,
-                           headers={'Authorization': token})
-    assert response.status_code == 200
-    data = json.loads(response.get_data(as_text=True))
-
+def test_delete_todo_twice(create_todo, delete_todo):
+    data = create_todo()
     id = data['values']['id']
 
-    response = client.delete(f'/todo/{id}', headers={'Authorization': token})
-    assert response.status_code == 200
-
-    response = client.delete(f'/todo/{id}', headers={'Authorization': token})
-    assert response.status_code == 400
+    delete_todo(id)
+    delete_todo(id, HTTPStatus.BAD_REQUEST)
