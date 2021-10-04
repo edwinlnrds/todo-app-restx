@@ -1,5 +1,5 @@
 from flask import make_response, jsonify
-
+from http import HTTPStatus
 
 class Response(object):
     __instance = None
@@ -24,16 +24,15 @@ class Response(object):
         return make_response(jsonify(self.payload), self.payload['status_code'])
 
     def ok(self, message, values):
-        return self.create_payload_response(200, message, values)
+        return self.create_payload_response(HTTPStatus.OK, message, values)
 
     def bad_request(self, message, values):
-        return self.create_payload_response(400, message, values)
-
-    def not_found(self, message, values):
-        return self.create_payload_response(404, message, values)
+        return self.create_payload_response(HTTPStatus.BAD_REQUEST, message, values)
 
     def unauthorized(self, message, values):
-        return self.create_payload_response(401, message,  values)
+        return self.create_payload_response(HTTPStatus.UNAUTHORIZED, message,  values)
 
+    def not_found(self, message, values):
+        return self.create_payload_response(HTTPStatus.NOT_FOUND, message, values)
 
 response = Response()
