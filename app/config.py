@@ -6,6 +6,7 @@ env.read_env()
 
 class Config(object):
     APP_ENV = 'development'
+    TESTING = False
     FLASK_RUN_HOST = env.str('FLASK_RUN_HOST')
     FLASK_RUN_PORT = env.str('FLASK_RUN_PORT')
 
