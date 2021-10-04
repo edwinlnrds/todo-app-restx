@@ -17,3 +17,23 @@ def database(test_app):
     with test_app.app_context():
         disconnect()
         connect('mongoenginetest', host='mongomock://localhost/mocking_db')
+
+@pytest.fixture(scope="function")
+def user():
+    payload = {
+        "name": "Edwin",
+        "email": "test@mail.com",
+        "password": "abcdefg",
+        "confirmation_password": "abcdefg"
+    }
+    
+    return payload
+
+@pytest.fixture(scope="function")
+def other_user():
+    return {
+        "name": "Test",
+        "email": "test@mail.com",
+        "password": "12345678",
+        "confirmation_password": "12345678"
+    }
