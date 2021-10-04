@@ -128,8 +128,8 @@ def get_token(register):
 
 @pytest.fixture(scope="function")
 def create_todo(client, database, todo, get_token):
-    def _create_todo(payload=todo, expected_status_code=HTTPStatus.OK):    
-        bearer_token = "Bearer {}".format(get_token())
+    def _create_todo(payload=todo, expected_status_code=HTTPStatus.OK, token=get_token()):    
+        bearer_token = "Bearer {}".format(token)
         response = client.post('/todo', json=payload, headers={'Authorization': bearer_token })
         assert response.status_code == expected_status_code
 
