@@ -49,13 +49,8 @@ def user(mock_user):
     return new_user
 
 @pytest.fixture(scope="function")
-def other_user():
-    return {
-        "name": "Test",
-        "email": "test@mail.com",
-        "password": "12345678",
-        "confirmation_password": "12345678"
-    }
+def other_user(mock_user):
+    return mock_user(name="Admoon", email="random@mail.com")
 
 @pytest.fixture(scope="function")
 def mock_todo():
