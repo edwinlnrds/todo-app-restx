@@ -177,7 +177,7 @@ def update_todo(client, database, get_token, todo):
     return _update_todo
 
 @pytest.fixture(scope="function")
-def delete_todo(client, database, get_token, todo):
+def delete_todo(client, database, get_token):
     def _delete_todo(id, expected_status_code=HTTPStatus.OK, token=get_token()):
         bearer_token = "Bearer {}".format(token)
         response = client.delete(f'/todo/{id}', headers={'Authorization':bearer_token})
