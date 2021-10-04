@@ -21,13 +21,18 @@ def database(test_app):
 
 @pytest.fixture
 def mock_user():
-    def _mock_user(without=[], with_empty=[]):    
+    def _mock_user(name=None, email=None, without=[], with_empty=[]):    
         payload = {
             "name": "Edwin",
             "email": "test@mail.com",
             "password": "abcdefg",
             "confirmation_password": "abcdefg"
         }
+        
+        if name:
+            payload['name'] = name
+        if email:
+            payload['email'] = email
         
         for keyword in without:
             del payload[keyword]
