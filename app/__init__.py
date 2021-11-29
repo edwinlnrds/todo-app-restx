@@ -1,9 +1,13 @@
 from flask import Flask
+from flask_cors import CORS
+
 
 def create_app(Config):
     app = Flask(__name__)
     app.config.from_object(Config)
-    
+
+    CORS(app)
+
     if not app.config['TESTING']:
         from app.db_manager import DatabaseManager
         DatabaseManager.open_database()
